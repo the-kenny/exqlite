@@ -28,11 +28,18 @@ defmodule Exqlite.ConnectionTest do
     assert {:ok, _query, [[result: 65]]} = DBConnection.prepare_execute(db, Query.from("select ?+? as result"), [42, 23])
   end
 
-  test "Transaction" do
+  test "transaction + prepare_execute" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
 
     DBConnection.transaction(db, fn db ->
       assert {:ok, _query, [["10": 10]]} = DBConnection.prepare_execute(db, Query.from("select 10"), [])
     end)
+  end
+
+  test "invalid sql syntax" do
+    {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
+    assert {:error, _} = DBConnection.prepare(db, Query.from("select asdf"), [])
+    assert {:error, _} = DBConnection.execute(db, Query.from("select asdf"), [])
+    assert {:error, _} = DBConnection.prepare_execute(db, Query.from("select asdf"), [])
   end
 end

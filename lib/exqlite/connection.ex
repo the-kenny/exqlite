@@ -52,6 +52,7 @@ defmodule Exqlite.Connection do
   @impl true
   def handle_status(_opts, state), do: {state.status, state}
 
+  @spec maybe_prepare_query(Exqlite.Query.t(), State.t()) :: {:ok, Exqlite.Query.t} | {:error, String.t()}
   defp maybe_prepare_query(%{statement: nil} = query, connection) do
     with {:ok, stmt} <- :esqlite3.prepare(query.query, connection) do
       {:ok, %{query | statement: stmt}}
@@ -78,6 +79,8 @@ defmodule Exqlite.Connection do
            rows when is_list(rows) <- :esqlite3.fetchall(query.statement)
       do
         {:ok, query, rows, state}
+      else
+        {:error, error} -> throw {:error, error}
       end
     catch
       {:error, {:sqlite_error, e}} -> {:error, to_string(e), state}
