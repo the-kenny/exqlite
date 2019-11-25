@@ -13,8 +13,13 @@ defmodule Exqlite.Query do
 
     def encode(_query, params, _opts), do: params
 
-    def decode(query, result, opts) do
-      result
+    def decode(query, result, _opts) do
+      columns = Tuple.to_list(:esqlite3.column_names(query.statement))
+
+      Enum.map(result, fn row ->
+        Enum.zip(columns, Tuple.to_list(row))
+      end)
+
     end
   end
 end

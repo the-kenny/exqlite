@@ -106,7 +106,7 @@ defmodule Exqlite.Connection do
     case :esqlite3.fetchone(cursor) do
       :ok -> {:halt, [], state}
       {:error, error} -> {:error, error, state}
-      row -> {:cont, [row]}
+    row -> {:cont, [row]}
     end
   end
 
