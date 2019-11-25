@@ -4,11 +4,18 @@ require Exqlite.Query
 defmodule Exqlite.Connection do
   use DBConnection
 
+  defmodule State do
+    defstruct [
+      connection: nil,
+      status: :idle,
+    ]
+  end
+
   @impl true
   def connect(opts) do
     database = Keyword.fetch!(opts, :database) || raise "No :database specifiec"
     with {:ok, conn} <- :esqlite3.open(to_charlist(database)) do
-      {:ok, {conn, :idle}}
+      {:ok, %State{connection: conn, status: :idle}}
     end
   end
 
@@ -21,15 +28,15 @@ defmodule Exqlite.Connection do
   @impl true
   def ping(state), do: {:ok, state}
 
-  defp handle_tx({_conn, status} = state, expected_status, _after_status, _sql, _opts) when status != expected_status do
+  defp handle_tx(%{status: status} = state, expected_status, _after_status, _sql, _opts) when status != expected_status do
     {status, state}
   end
 
-  defp handle_tx({conn, _status} , _expected_status, after_status, sql, _opts) do
-    with :ok <- :esqlite3.exec(sql, conn) do
-      {:ok, :ok, {conn, after_status}}
+  defp handle_tx(state , _expected_status, after_status, sql, _opts) do
+    with :ok <- :esqlite3.exec(sql, state.connection) do
+      {:ok, :ok, %{state | status: after_status}}
     else
-      {:error, _error} -> {:error, conn, :error}
+      {:error, _error} -> {:error, state}
     end
   end
 
@@ -43,20 +50,34 @@ defmodule Exqlite.Connection do
   def handle_rollback(opts, state), do: handle_tx(state, :transaction, :idle, "rollback", opts)
 
   @impl true
-  def handle_status(_opts, {_conn, status} = state), do: {status, state}
+  def handle_status(_opts, state), do: {state.status, state}
 
-  @impl true
-  def handle_prepare(query, _opts, state) do
-    # We skip preparing for now and just return the query as-is
-    {:ok, query, state}
+  defp maybe_prepare_query(%{statement: nil} = query, connection) do
+    with {:ok, stmt} <- :esqlite3.prepare(query.query, connection) do
+      {:ok, %{query | statement: stmt}}
+    end
+  end
+
+  defp maybe_prepare_query(query, _connection) do
+    {:ok, query}
   end
 
   @impl true
-  def handle_execute(query, params, _opts, {conn, _status} = state) do
+  def handle_prepare(query, _opts, state) do
+    case maybe_prepare_query(query, state.connection) do
+      {:ok, query} -> {:ok, query, state}
+      {:error, error} -> {:error, error, state}
+    end
+  end
+
+  @impl true
+  def handle_execute(query, params, _opts, state) do
     try do
-      case :esqlite3.q(query.query, params, conn) do
-        {:error, term} -> {:error, term}
-        rows -> {:ok, query, rows, state}
+      with {:ok, query} <- maybe_prepare_query(query, state.connection),
+           :ok <- :esqlite3.bind(query.statement, params),
+           rows when is_list(rows) <- :esqlite3.fetchall(query.statement)
+      do
+        {:ok, query, rows, state}
       end
     catch
       {:error, {:sqlite_error, e}} -> {:error, to_string(e), state}
@@ -67,16 +88,16 @@ defmodule Exqlite.Connection do
   def handle_close(_query, _opts, state), do: {:ok, [], state}
 
   @impl true
-  def disconnect(_error, {conn, _status}) do
-    :esqlite3.close(conn)
+  def disconnect(_error, state) do
+    :esqlite3.close(state.connection)
   end
 
   @impl true
-  def handle_declare(query, params, _opts, {conn, _status} = state) do
-    with {:ok, stmt} <- :esqlite3.prepare(query.query, conn),
-      :ok <- :esqlite3.bind(stmt, params)
+  def handle_declare(query, params, _opts, state) do
+    with {:ok, query} <- maybe_prepare_query(query, state.connection),
+         :ok <- :esqlite3.bind(query.stateent, params)
     do
-      {:ok, query, stmt, state}
+      {:ok, query, query.statement, state}
     end
   end
 

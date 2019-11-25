@@ -1,5 +1,8 @@
 defmodule Exqlite.Query do
-  defstruct [ :query ]
+  defstruct [
+    query: nil,
+    statement: nil,
+  ]
 
   def from(s), do: %__MODULE__{query: [s]}
 
@@ -10,6 +13,8 @@ defmodule Exqlite.Query do
 
     def encode(_query, params, _opts), do: params
 
-    def decode(_query, result, _opts), do: result
+    def decode(query, result, opts) do
+      result
+    end
   end
 end
