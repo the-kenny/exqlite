@@ -47,9 +47,26 @@ defmodule Exqlite.ConnectionTest do
     assert {:error, _} = DBConnection.execute(db, %Query{statement: "select asdf"}, [])
     assert {:error, _} = DBConnection.prepare_execute(db, %Query{statement: "select asdf"}, [])
   end
-    assert {:error, _} = DBConnection.prepare(db, Query.from("select asdf"), [])
-    assert {:error, _} = DBConnection.execute(db, Query.from("select asdf"), [])
-    assert {:error, _} = DBConnection.prepare_execute(db, Query.from("select asdf"), [])
+
+  test "streaming" do
+    {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
+
+    query = %Query{statement: "WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt LIMIT ?) SELECT x FROM cnt"}
+    query = DBConnection.prepare!(db, query)
+
+    {:ok, _} = DBConnection.transaction(db, fn db ->
+      try do
+        range = Range.new(0, 100) |> Enum.map(fn x -> {:x, x} end)
+
+        stream = DBConnection.stream(db, query, [length(range)])
+        list = Enum.to_list(stream)
+        IO.inspect list
+        IO.inspect range
+        assert range == list
+      after
+        DBConnection.close(db, query)
+      end
+    end)
   end
 
   test "blocking operations on the same database file" do
