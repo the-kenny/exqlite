@@ -50,12 +50,13 @@ defmodule Exqlite.Connection do
   def handle_rollback(opts, state), do: handle_tx(state, :transaction, :idle, "rollback", opts)
 
   @impl true
+  @spec handle_status(any, atom | %{status: any}) :: {any, atom | %{status: any}}
   def handle_status(_opts, state), do: {state.status, state}
 
   @spec maybe_prepare_query(Exqlite.Query.t(), State.t()) :: {:ok, Exqlite.Query.t()} | {:error, String.t()}
-  defp maybe_prepare_query(%{statement: nil} = query, connection) do
-    with {:ok, stmt} <- :esqlite3.prepare(query.query, connection) do
-      {:ok, %{query | statement: stmt}}
+  defp maybe_prepare_query(%Exqlite.Query{prepared_statement: nil} = query, connection) do
+    with {:ok, stmt} <- :esqlite3.prepare(query.statement, connection) do
+      {:ok, %{query | prepared_statement: stmt}}
     end
   end
 

@@ -1,10 +1,8 @@
 defmodule Exqlite.Query do
   defstruct [
-    query: nil,
+    statement: nil,
     prepared_statement: nil,
   ]
-
-  def from(s), do: %__MODULE__{query: [s]}
 
   defimpl DBConnection.Query do
     def parse(query, _opts), do: query

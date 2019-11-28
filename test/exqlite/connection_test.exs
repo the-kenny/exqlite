@@ -15,34 +15,38 @@ defmodule Exqlite.ConnectionTest do
 
   test "execute without prepare" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [["1+1": 2]]} = DBConnection.execute(db, Query.from("select 1+1"), [])
+    assert {:ok, _query, [["1+1": 2]]} = DBConnection.execute(db, %Query{statement: "select 1+1"}, [])
   end
 
   test "prepare_execute" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [["1+1": 2]]} = DBConnection.prepare_execute(db, Query.from("select 1+1"), [])
+    assert {:ok, _query, [["1+1": 2]]} = DBConnection.prepare_execute(db, %Query{statement: "select 1+1"}, [])
   end
 
   test "prepare_execute with args" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [[result: 65]]} = DBConnection.prepare_execute(db, Query.from("select ?+? as result"), [42, 23])
+    assert {:ok, _query, [[result: 65]]} = DBConnection.prepare_execute(db, %Query{statement: "select ?+? as result"}, [42, 23])
   end
 
   test "transaction + prepare_execute" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
 
     DBConnection.transaction(db, fn db ->
-      assert {:ok, _query, [["10": 10]]} = DBConnection.prepare_execute(db, Query.from("select 10"), [])
+      assert {:ok, _query, [["10": 10]]} = DBConnection.prepare_execute(db, %Query{statement: "select 10"}, [])
     end)
   end
 
   test "various sqltie functions" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [["sqlite_version()": _]]} = DBConnection.prepare_execute(db, Query.from("select sqlite_version()"), [])
+    assert {:ok, _query, [["sqlite_version()": _]]} = DBConnection.prepare_execute(db, %Query{statement: "select sqlite_version()"}, [])
   end
 
   test "invalid sql syntax" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
+    assert {:error, _} = DBConnection.prepare(db, %Query{statement: "select asdf"}, [])
+    assert {:error, _} = DBConnection.execute(db, %Query{statement: "select asdf"}, [])
+    assert {:error, _} = DBConnection.prepare_execute(db, %Query{statement: "select asdf"}, [])
+  end
     assert {:error, _} = DBConnection.prepare(db, Query.from("select asdf"), [])
     assert {:error, _} = DBConnection.execute(db, Query.from("select asdf"), [])
     assert {:error, _} = DBConnection.prepare_execute(db, Query.from("select asdf"), [])
@@ -52,10 +56,10 @@ defmodule Exqlite.ConnectionTest do
     file = "db_#{:erlang.phash2(make_ref())}"
     try do
       {:ok, blocking_db} = DBConnection.start_link(Exqlite.Connection, [ database: file ])
-      create_table_query = Query.from("create table test (id integer)")
+      create_table_query = %Query{statement: "create table test (id integer)"}
       {:ok, _, _} = DBConnection.prepare_execute(blocking_db, create_table_query, [])
 
-      insert_query = Query.from("insert into test (id) values (42)")
+      insert_query = %Query{statement: "insert into test (id) values (42)"}
 
       {:ok, db} = DBConnection.start_link(Exqlite.Connection, [ database: file ])
 
