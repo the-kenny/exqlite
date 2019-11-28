@@ -1,7 +1,7 @@
 defmodule Exqlite.Query do
   defstruct [
     query: nil,
-    statement: nil,
+    prepared_statement: nil,
   ]
 
   def from(s), do: %__MODULE__{query: [s]}
@@ -14,7 +14,7 @@ defmodule Exqlite.Query do
     def encode(_query, params, _opts), do: params
 
     def decode(query, result, _opts) do
-      columns = Tuple.to_list(:esqlite3.column_names(query.statement))
+      columns = Tuple.to_list(:esqlite3.column_names(query.prepared_statement))
 
       Enum.map(result, fn row ->
         Enum.zip(columns, Tuple.to_list(row))

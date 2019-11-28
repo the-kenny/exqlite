@@ -75,8 +75,8 @@ defmodule Exqlite.Connection do
   def handle_execute(query, params, _opts, state) do
     try do
       with {:ok, query} <- maybe_prepare_query(query, state.connection),
-           :ok <- :esqlite3.bind(query.statement, params),
-           rows when is_list(rows) <- :esqlite3.fetchall(query.statement)
+           :ok <- :esqlite3.bind(query.prepared_statement, params),
+           rows when is_list(rows) <- :esqlite3.fetchall(query.prepared_statement)
       do
         {:ok, query, rows, state}
       else
@@ -98,9 +98,9 @@ defmodule Exqlite.Connection do
   @impl true
   def handle_declare(query, params, _opts, state) do
     with {:ok, query} <- maybe_prepare_query(query, state.connection),
-         :ok <- :esqlite3.bind(query.stateent, params)
+         :ok <- :esqlite3.bind(query.prepared_statement, params)
     do
-      {:ok, query, query.statement, state}
+      {:ok, query, query.prepared_statement, state}
     end
   end
 
@@ -109,7 +109,7 @@ defmodule Exqlite.Connection do
     case :esqlite3.fetchone(cursor) do
       :ok -> {:halt, [], state}
       {:error, error} -> {:error, error, state}
-    row -> {:cont, [row]}
+      row -> {:cont, [row], state}
     end
   end
 
