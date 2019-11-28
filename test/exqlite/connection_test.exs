@@ -72,6 +72,7 @@ defmodule Exqlite.ConnectionTest do
     end)
   end
 
+  @tag :skip
   test "blocking operations on the same database file" do
     file = "db_#{:erlang.phash2(make_ref())}"
     try do
