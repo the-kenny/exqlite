@@ -14,10 +14,8 @@ defmodule Exqlite.Query do
     def decode(query, result, _opts) do
       columns = Tuple.to_list(:esqlite3.column_names(query.prepared_statement))
 
-      Enum.map(result, fn row ->
-        Enum.zip(columns, Tuple.to_list(row))
-      end)
-
+      rows = Enum.map(result.raw_rows, fn row -> Enum.zip(columns, Tuple.to_list(row)) end)
+      %{ result | rows: rows }
     end
   end
 end

@@ -1,5 +1,6 @@
 
 require Exqlite.Query
+alias Exqlite.Result
 
 defmodule Exqlite.Connection do
   use DBConnection
@@ -50,7 +51,6 @@ defmodule Exqlite.Connection do
   def handle_rollback(opts, state), do: handle_tx(state, :transaction, :idle, "rollback", opts)
 
   @impl true
-  @spec handle_status(any, atom | %{status: any}) :: {any, atom | %{status: any}}
   def handle_status(_opts, state), do: {state.status, state}
 
   @spec maybe_prepare_query(Exqlite.Query.t(), State.t()) :: {:ok, Exqlite.Query.t()} | {:error, String.t()}
@@ -79,7 +79,7 @@ defmodule Exqlite.Connection do
            :ok <- :esqlite3.bind(query.prepared_statement, params),
            rows when is_list(rows) <- :esqlite3.fetchall(query.prepared_statement)
       do
-        {:ok, query, rows, state}
+        {:ok, query, %Result{raw_rows: rows}, state}
       else
         {:error, error} -> throw {:error, error}
       end
@@ -107,10 +107,11 @@ defmodule Exqlite.Connection do
 
   @impl true
   def handle_fetch(_query, cursor, _opts, state) do
+    # TODO: Support `:max_rows` in `opts`
     case :esqlite3.fetchone(cursor) do
-      :ok -> {:halt, [], state}
+      :ok -> {:halt, %Result{}, state}
       {:error, error} -> {:error, error, state}
-      row -> {:cont, [row], state}
+      row -> {:cont, %Result{raw_rows: [row]}, state}
     end
   end
 

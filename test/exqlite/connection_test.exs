@@ -15,30 +15,35 @@ defmodule Exqlite.ConnectionTest do
 
   test "execute without prepare" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [["1+1": 2]]} = DBConnection.execute(db, %Query{statement: "select 1+1"}, [])
+    {:ok, _, result} = DBConnection.execute(db, %Query{statement: "select 1+1"}, [])
+    assert [[{:"1+1", 2}]] = result.rows
   end
 
   test "prepare_execute" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [["1+1": 2]]} = DBConnection.prepare_execute(db, %Query{statement: "select 1+1"}, [])
+    {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select 1+1"}, [])
+    assert [[{:"1+1", 2}]] = result.rows
   end
 
   test "prepare_execute with args" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [[result: 65]]} = DBConnection.prepare_execute(db, %Query{statement: "select ?+? as result"}, [42, 23])
+    {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select ?+? as result"}, [42, 23])
+    assert [[{:result, 65}]] = result.rows
   end
 
   test "transaction + prepare_execute" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
 
     DBConnection.transaction(db, fn db ->
-      assert {:ok, _query, [["10": 10]]} = DBConnection.prepare_execute(db, %Query{statement: "select 10"}, [])
+      {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select 10"}, [])
+      assert [[{:"10", 10}]]  = result.rows
     end)
   end
 
   test "various sqltie functions" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, _query, [["sqlite_version()": _]]} = DBConnection.prepare_execute(db, %Query{statement: "select sqlite_version()"}, [])
+    {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select sqlite_version()"}, [])
+    assert [[{:"sqlite_version()", _}]] = result.rows
   end
 
   test "invalid sql syntax" do
@@ -51,17 +56,15 @@ defmodule Exqlite.ConnectionTest do
   test "streaming" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
 
-    query = %Query{statement: "WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt LIMIT ?) SELECT x FROM cnt"}
+    query = %Query{statement: "WITH RECURSIVE cnt(x) AS (SELECT 0 UNION ALL SELECT x+1 FROM cnt LIMIT ?) SELECT x FROM cnt"}
     query = DBConnection.prepare!(db, query)
 
     {:ok, _} = DBConnection.transaction(db, fn db ->
       try do
-        range = Range.new(0, 100) |> Enum.map(fn x -> {:x, x} end)
+        range = Range.new(0, 100) |> Enum.map(fn x -> [{:x, x}] end)
 
         stream = DBConnection.stream(db, query, [length(range)])
-        list = Enum.to_list(stream)
-        IO.inspect list
-        IO.inspect range
+        list = stream |> Enum.flat_map(fn x -> x.rows end) |> Enum.to_list()
         assert range == list
       after
         DBConnection.close(db, query)
