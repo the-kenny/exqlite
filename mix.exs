@@ -5,7 +5,7 @@ defmodule Exqlite.MixProject do
     [
       app: :exqlite,
       version: "0.1.0",
-      elixir: "~> 1.9",
+      elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
