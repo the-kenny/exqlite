@@ -6,10 +6,10 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
-        elixir: ['latest', '1.8', '1.7', '1.6']
+        elixir: ['latest', '1.9', '1.8', '1.7', '1.6']
 
     container:
       image: elixir:${{matrix.elixir}}
