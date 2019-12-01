@@ -2,6 +2,8 @@
 require Exqlite.Query
 alias Exqlite.Result
 
+# TODO: Timeout Handling from `opts`
+
 defmodule Exqlite.Connection do
   use DBConnection
 
@@ -53,17 +55,6 @@ defmodule Exqlite.Connection do
   @impl true
   def handle_status(_opts, state), do: {state.status, state}
 
-  @spec maybe_prepare_query(Exqlite.Query.t(), State.t()) :: {:ok, Exqlite.Query.t()} | {:error, String.t()}
-  defp maybe_prepare_query(%Exqlite.Query{prepared_statement: nil} = query, connection) do
-    with {:ok, stmt} <- :esqlite3.prepare(query.statement, connection) do
-      {:ok, %{query | prepared_statement: stmt}}
-    end
-  end
-
-  defp maybe_prepare_query(query, _connection) do
-    {:ok, query}
-  end
-
   @impl true
   def handle_prepare(query, _opts, state) do
     case maybe_prepare_query(query, state.connection) do
@@ -73,13 +64,13 @@ defmodule Exqlite.Connection do
   end
 
   @impl true
-  def handle_execute(query, params, _opts, state) do
+  def handle_execute(query, params, opts, state) do
     try do
       with {:ok, query} <- maybe_prepare_query(query, state.connection),
            :ok <- :esqlite3.bind(query.prepared_statement, params),
-           rows when is_list(rows) <- :esqlite3.fetchall(query.prepared_statement)
+           {:ok, result} <- fetch_all(query.prepared_statement, opts)
       do
-        {:ok, query, %Result{raw_rows: rows}, state}
+        {:ok, query, result, state}
       else
         {:error, error} -> throw {:error, error}
       end
@@ -106,12 +97,12 @@ defmodule Exqlite.Connection do
   end
 
   @impl true
-  def handle_fetch(_query, cursor, _opts, state) do
+  def handle_fetch(_query, cursor, opts, state) do
     # TODO: Support `:max_rows` in `opts`
-    case :esqlite3.fetchone(cursor) do
-      :ok -> {:halt, %Result{}, state}
+    case fetch_one(cursor, opts) do
+      {:ok, %Result{raw_rows: []} = result} -> {:halt, result, state}
+      {:ok, result} -> {:cont, result, state}
       {:error, error} -> {:error, error, state}
-      row -> {:cont, %Result{raw_rows: [row]}, state}
     end
   end
 
@@ -119,5 +110,50 @@ defmodule Exqlite.Connection do
   def handle_deallocate(_query, _cursor, _opts, state) do
     # :esqlite3.finalize() # TODO
     {:ok, [], state}
+  end
+
+  # Helpers
+
+  @spec maybe_prepare_query(Exqlite.Query.t(), State.t()) :: {:ok, Exqlite.Query.t()} | {:error, String.t()}
+  defp maybe_prepare_query(%Exqlite.Query{prepared_statement: nil} = query, connection) do
+    with {:ok, stmt} <- :esqlite3.prepare(query.statement, connection) do
+      query = %{query |
+        prepared_statement: stmt,
+        column_names: :esqlite3.column_names(stmt),
+        column_types: :esqlite3.column_types(stmt)
+      }
+      {:ok, query}
+    end
+  end
+
+  defp maybe_prepare_query(query, _connection) do
+    {:ok, query}
+  end
+
+  @spec fetch_one(Exqlite.Query.t(), Keyword.t()) :: {:ok, Exqlite.Result.t()} | {:error, any()}
+  defp fetch_one(statement, opts) do
+    case :esqlite3.step(statement) do
+      {:row, row} -> {:ok, %Result{raw_rows: [row]}}
+      {:error, error} -> {:error, error}
+      :"$done" -> {:ok, %Result{}}
+      :"$busy" ->
+        Process.sleep(10)
+        fetch_one(statement, opts)
+    end
+  end
+
+
+  @spec fetch_all(Exqlite.Query.t(), Keyword.t()) :: {:ok, Exqlite.Result.t()} | {:error, any()}
+  defp fetch_all(statement, opts) do
+    fetch_all_loop(statement, opts, [])
+  end
+
+  @spec fetch_all_loop(Exqlite.Query.t(), Keyword.t(), [tuple()]) :: {:ok, Exqlite.Result.t()} | {:error, any()}
+  defp fetch_all_loop(statement, opts, rows) do
+    case fetch_one(statement, opts) do
+      {:ok, %Result{raw_rows: []}} -> {:ok, %Result{raw_rows: rows}}
+      {:ok, %Result{raw_rows: new_rows}} -> fetch_all_loop(statement, opts, rows ++ new_rows)
+      {:error, error} -> {:error, error}
+    end
   end
 end

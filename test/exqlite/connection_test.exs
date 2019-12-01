@@ -5,7 +5,8 @@ defmodule Exqlite.ConnectionTest do
   alias Exqlite.Query
 
   @opts [
-    database: ":memory:"
+    database: ":memory:",
+    timeout: 100
   ]
 
   test "status" do
@@ -72,7 +73,6 @@ defmodule Exqlite.ConnectionTest do
     end)
   end
 
-  @tag :skip
   test "blocking operations on the same database file" do
     file = "db_#{:erlang.phash2(make_ref())}"
     try do
@@ -85,11 +85,11 @@ defmodule Exqlite.ConnectionTest do
       {:ok, db} = DBConnection.start_link(Exqlite.Connection, [ database: file ])
 
       parent = self()
-      {:ok, task} = Task.start_link(fn ->
-        DBConnection.transaction(blocking_db, fn blocking_db ->
+      {:ok, _task} = Task.start_link(fn ->
+        assert {:ok, _} = DBConnection.transaction(blocking_db, fn blocking_db ->
           assert {:ok, _, _} = DBConnection.prepare_execute(blocking_db, insert_query, [])
           Process.send(parent, :continue, [])
-          Process.sleep(20_000)
+          Process.sleep(1000)
         end)
       end)
 
