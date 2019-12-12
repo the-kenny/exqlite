@@ -73,8 +73,12 @@ defmodule Exqlite.ConnectionTest do
     end)
   end
 
+  defp tmp_db() do
+    "db_#{:erlang.phash2(make_ref())}"
+  end
+
   test "blocking operations on the same database file" do
-    file = "db_#{:erlang.phash2(make_ref())}"
+    file = tmp_db()
     try do
       {:ok, blocking_db} = DBConnection.start_link(Exqlite.Connection, [ database: file ])
       create_table_query = %Query{statement: "create table test (id integer)"}
@@ -101,5 +105,11 @@ defmodule Exqlite.ConnectionTest do
     after
       File.rm!(file)
     end
+  end
+
+  test "error when opening a file in a non existing director" do
+    file = Path.join("non/existing/path/", tmp_db())
+    {:ok, db} = DBConnection.start_link(Exqlite.Connection, [database: file])
+    assert {:error, _error} = DBConnection.execute(db, %Exqlite.Query{statement: "select true"}, [])
   end
 end
