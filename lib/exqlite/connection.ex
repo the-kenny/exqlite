@@ -16,7 +16,7 @@ defmodule Exqlite.Connection do
 
   @impl true
   def connect(opts) do
-    database = Keyword.fetch!(opts, :database) || raise "No :database specifiec"
+    database = Keyword.fetch!(opts, :database) || raise "No :database specified"
     with {:ok, conn} <- :esqlite3.open(to_charlist(database)) do
       {:ok, %State{connection: conn, status: :idle}}
     end
@@ -75,9 +75,12 @@ defmodule Exqlite.Connection do
         {:error, error} -> throw {:error, error}
       end
     catch
-      {:error, {:sqlite_error, e}} -> {:error, to_string(e), state}
+      {:error, e} -> {:error, error_description(e), state}
     end
   end
+
+  defp error_description({:constraint, b}), do: to_string(b)
+  defp error_description({:sqlite_error, b}), do: to_string(b)
 
   @impl true
   def handle_close(_query, _opts, state), do: {:ok, [], state}
@@ -135,7 +138,7 @@ defmodule Exqlite.Connection do
     case :esqlite3.step(statement) do
       {:row, row} -> {:ok, %Result{raw_rows: [row]}}
       {:error, error} -> {:error, error}
-      :"$done" -> {:ok, %Result{}}
+      :"$done" -> {:ok, %Result{raw_rows: []}}
       :"$busy" ->
         Process.sleep(10)
         fetch_one(statement, opts)
