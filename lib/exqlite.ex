@@ -22,7 +22,7 @@ defmodule Exqlite do
 
   Start a database connection to a file
 
-      iex> file = Path.absname("test.db")
+      iex> file = Path.absname("test.db"); File.mkdir_p!(Path.dirname(file))
       iex> {:ok, _db} = Exqlite.start_link([database: file])
       iex> File.exists?(file)
       true
