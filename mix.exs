@@ -22,6 +22,7 @@ defmodule Exqlite.MixProject do
       {:esqlite, "~> 0.4.0"},
       {:db_connection, "~> 2.1.1"},
       {:ex_doc, "~> 0.21", only: :dev, runtime: false},
+      {:temp, "~> 0.4", only: [:dev, :test]},
     ]
   end
 end
