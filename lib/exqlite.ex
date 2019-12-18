@@ -12,6 +12,8 @@ defmodule Exqlite do
   @doc """
   Opens a connection to a SQLite database.
 
+  ## Parameters
+
   ## Examples
 
   Start a in-memory database connection

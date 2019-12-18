@@ -2,6 +2,7 @@ defmodule Exqlite.ConnectionTest do
   use ExUnit.Case, async: true
   doctest Exqlite.Connection
 
+  alias Exqlite.Result
   alias Exqlite.Query
   require Temp
 
@@ -53,6 +54,13 @@ defmodule Exqlite.ConnectionTest do
     assert {:error, _} = DBConnection.prepare(db, %Query{statement: "select asdf"}, [])
     assert {:error, _} = DBConnection.execute(db, %Query{statement: "select asdf"}, [])
     assert {:error, _} = DBConnection.prepare_execute(db, %Query{statement: "select asdf"}, [])
+  end
+
+  test "unique violations" do
+    {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
+    assert {:ok, %Result{}} = Exqlite.query(db, "create table test (number integer unique)")
+    assert {:ok, %Result{}} = Exqlite.query(db, "insert into test (number) values(?)", [42])
+    assert {:error, "UNIQUE constraint failed: test.number"} = Exqlite.query(db, "insert into test (number) values(?)", [42])
   end
 
   test "streaming" do
