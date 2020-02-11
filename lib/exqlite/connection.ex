@@ -64,6 +64,20 @@ defmodule Exqlite.Connection do
   end
 
   @impl true
+  def handle_execute(%Exqlite.RawQuery{} = query, _params, _opts, state) do
+    try do
+      with :ok <- :esqlite3.exec(query.sql, state.connection)
+      do
+        {:ok, query, nil, state}
+      else
+        {:error, error} -> throw {:error, error}
+      end
+    catch
+      {:error, e} -> {:error, error_description(e), state}
+    end
+  end
+
+  @impl true
   def handle_execute(query, params, opts, state) do
     try do
       with {:ok, query} <- maybe_prepare_query(query, state.connection),
@@ -84,6 +98,7 @@ defmodule Exqlite.Connection do
   defp error_description({:constraint, b}), do: "Constraint error: " <> to_string(b)
   defp error_description({:sqlite_error, b}), do: to_string(b)
   defp error_description(error) when is_binary(error), do: to_string(error)
+  defp error_description(error) when is_atom(error), do: "Unknown error type: " <> to_string(error)
 
   @impl true
   def handle_close(_query, _opts, state), do: {:ok, [], state}
@@ -149,7 +164,6 @@ defmodule Exqlite.Connection do
         fetch_one(statement, opts)
     end
   end
-
 
   @spec fetch_all(Exqlite.Query.t(), Keyword.t()) :: {:ok, Exqlite.Result.t()} | {:error, any()}
   defp fetch_all(statement, opts) do

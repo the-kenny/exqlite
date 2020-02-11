@@ -16,6 +16,9 @@ defmodule ExqliteTest do
 
     assert {:ok, db} = Exqlite.start_link(database: Temp.path!())
     assert is_pid(db)
+
+    assert {:ok, db} = Exqlite.start_link(database: ':memory:', name: Foo.Bar)
+    assert {:ok, _} = Exqlite.query(Foo.Bar, "select 42")
   end
 
   defp db!() do
@@ -25,10 +28,14 @@ defmodule ExqliteTest do
 
   test "query" do
     db = db!()
+    assert {:ok, %Result{rows: [[{:x, "foo"}]]}} = Exqlite.query(db, "select ? as x", ["foo"])
+
     assert {:ok, %Result{}} = Exqlite.query(db, "create table test (number integer)")
     assert {:ok, %Result{rows: []}} = Exqlite.query(db, "select * from test")
     assert {:ok, %Result{}} = Exqlite.query(db, "insert into test (number) values(?)", [42])
     assert {:ok, %Result{rows: [[{:number, 42}]]}} = Exqlite.query(db, "select * from test")
+
+    assert {:ok, %Result{}} = Exqlite.query(db, "insert into test (number) values(?)", ["foo"])
   end
 
   test "prepare" do
@@ -72,6 +79,12 @@ defmodule ExqliteTest do
     assert result.rows == [[{:result, 42}]]
 
     assert {:error, _error} = Exqlite.execute(db, "select 42", [])
+  end
+
+  test "execute_raw" do
+    db = db!()
+    {:ok, nil} = Exqlite.execute_raw(db, "begin; select 42 as result; commit;")
+    {:error, "near \"bejgin\": syntax error"} = Exqlite.execute_raw(db, "bejgin; select 42 as result; commit;")
   end
 
   @tag :skip

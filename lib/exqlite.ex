@@ -88,6 +88,14 @@ defmodule Exqlite do
 
   def execute(conn, query, params), do: execute(conn, query, params, [])
 
+
+  def execute_raw(conn, sql, opts \\ []) do
+    query = %Exqlite.RawQuery{sql: sql}
+    with {:ok, _query, result} <- DBConnection.execute(conn, query, [], opts) do
+      {:ok, result}
+    end
+  end
+
   def close(conn, %Exqlite.Query{} = query, opts \\ []) do
     case DBConnection.close(conn, query, opts) do
       {:ok, _} ->
