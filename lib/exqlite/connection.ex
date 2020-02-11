@@ -59,7 +59,7 @@ defmodule Exqlite.Connection do
   def handle_prepare(query, _opts, state) do
     case maybe_prepare_query(query, state.connection) do
       {:ok, query} -> {:ok, query, state}
-      {:error, error} -> {:error, error, state}
+      {:error, error} -> {:error, error_description(error), state}
     end
   end
 
@@ -79,8 +79,11 @@ defmodule Exqlite.Connection do
     end
   end
 
-  defp error_description({:constraint, b}), do: to_string(b)
+  @spec error_description(any()) :: String.t()
+  defp error_description(:args_wrong_length), do: "Invalid number of arguments"
+  defp error_description({:constraint, b}), do: "Constraint error: " <> to_string(b)
   defp error_description({:sqlite_error, b}), do: to_string(b)
+  defp error_description(error) when is_binary(error), do: to_string(error)
 
   @impl true
   def handle_close(_query, _opts, state), do: {:ok, [], state}
@@ -105,7 +108,7 @@ defmodule Exqlite.Connection do
     case fetch_one(cursor, opts) do
       {:ok, %Result{raw_rows: []} = result} -> {:halt, result, state}
       {:ok, result} -> {:cont, result, state}
-      {:error, error} -> {:error, error, state}
+      {:error, error} -> {:error, error_description(error), state}
     end
   end
 
@@ -126,6 +129,8 @@ defmodule Exqlite.Connection do
         column_types: :esqlite3.column_types(stmt)
       }
       {:ok, query}
+    else
+      {:error, error} -> {:error, error_description(error)}
     end
   end
 

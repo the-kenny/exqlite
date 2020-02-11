@@ -4,6 +4,7 @@ defmodule ExqliteTest do
 
   require Temp
 
+  alias Exqlite.Query
   alias Exqlite.Result
 
   test "start_link" do
@@ -30,19 +31,47 @@ defmodule ExqliteTest do
     assert {:ok, %Result{rows: [[{:number, 42}]]}} = Exqlite.query(db, "select * from test")
   end
 
-  @tag :skip
   test "prepare" do
+    db = db!()
 
+    # Simple case
+    assert {:ok, %Query{}} = Exqlite.prepare(db, "select 42")
+
+    # `prepare` With parameters
+    assert {:ok, %Query{}} = Exqlite.prepare(db, "select ? + ?")
+
+    # Invalid Syntax
+    assert {:error, error_description} = Exqlite.prepare(db, "asdf 42")
+    assert is_binary(error_description)
   end
 
-  @tag :skip
   test "prepare_execute" do
+    db = db!()
 
+    # Simple case
+    assert {:ok, %Query{}, result} = Exqlite.prepare_execute(db, "select 42 as result")
+    assert result.rows == [[{:result, 42}]]
+
+    # `prepare_execute` with bound parameters
+    assert {:ok, %Query{}, result} = Exqlite.prepare_execute(db, "select ? + ? as result", [1, 2])
+    assert result.rows == [[{:result, 3}]]
+
+    # Invalid Syntax
+    assert {:error, error_description} = Exqlite.prepare_execute(db, "asdf 42")
+    assert is_binary(error_description)
+
+    # Missing parameters
+    assert {:error, error_description} = Exqlite.prepare_execute(db, "select ? + ? as result")
+    assert is_binary(error_description)
   end
 
-  @tag :skip
   test "execute" do
+    db = db!()
+    {:ok, query} = Exqlite.prepare(db, "select 42 as result")
+    assert {:ok, result} = Exqlite.execute(db, query, [])
+    assert result.rows == [[{:result, 42}]]
 
+    assert {:error, _error} = Exqlite.execute(db, "select 42", [])
   end
 
   @tag :skip

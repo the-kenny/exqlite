@@ -75,7 +75,18 @@ defmodule Exqlite do
     DBConnection.prepare_execute(conn, query, options)
   end
 
-  defdelegate execute(conn, query, params, opts \\ []), to: DBConnection
+
+  def execute(conn, %Exqlite.Query{} = query, params, opts) do
+    with {:ok, _query, result} <- DBConnection.execute(conn, query, params, opts) do
+      {:ok, result}
+    end
+  end
+
+  def execute(_conn, _query, _params, _opts) do
+    {:error, "Unprepared query. Did you run `Exqlite.prepare`?"}
+  end
+
+  def execute(conn, query, params), do: execute(conn, query, params, [])
 
   def close(conn, %Exqlite.Query{} = query, opts \\ []) do
     case DBConnection.close(conn, query, opts) do

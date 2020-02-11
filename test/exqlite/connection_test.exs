@@ -58,9 +58,12 @@ defmodule Exqlite.ConnectionTest do
 
   test "unique violations" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    assert {:ok, %Result{}} = Exqlite.query(db, "create table test (number integer unique)")
-    assert {:ok, %Result{}} = Exqlite.query(db, "insert into test (number) values(?)", [42])
-    assert {:error, "UNIQUE constraint failed: test.number"} = Exqlite.query(db, "insert into test (number) values(?)", [42])
+    assert {:ok, _, _result} = DBConnection.prepare_execute(db, %Query{statement: "create table test (number integer unique)"}, [])
+
+    {:ok, query} = DBConnection.prepare(db, %Query{statement: "insert into test (number) values(?)"})
+    assert {:ok, _, _result} = DBConnection.execute(db, query, [42], [])
+    assert {:ok, _, _result} = DBConnection.execute(db, query, [23], [])
+    assert {:error, "Constraint error: UNIQUE constraint failed: test.number"} = DBConnection.execute(db, query, [42])
   end
 
   test "streaming" do
