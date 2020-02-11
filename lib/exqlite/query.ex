@@ -17,8 +17,16 @@ defmodule Exqlite.Query do
     def decode(query, result, _opts) do
       columns = Tuple.to_list(query.column_names)
 
-      rows = Enum.map(result.raw_rows, fn row -> Enum.zip(columns, Tuple.to_list(row)) end)
+      rows = result.raw_rows
+      |> Stream.map(&Tuple.to_list/1)
+      |> Stream.map(fn row -> Enum.map(row, &undefined_to_nil/1) end)
+      |> Enum.map(fn row -> Enum.zip(columns, row) end)
+
       %{ result | rows: rows }
     end
+
+    defp undefined_to_nil(:undefined), do: nil
+    defp undefined_to_nil(value), do: value
   end
+
 end

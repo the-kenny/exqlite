@@ -38,6 +38,16 @@ defmodule ExqliteTest do
     assert {:ok, %Result{}} = Exqlite.query(db, "insert into test (number) values(?)", ["foo"])
   end
 
+  test "query with empty result set" do
+    db = db!()
+    assert {:ok, %Result{}} = Exqlite.query(db, "create table test (number integer)")
+    assert {:ok, %Result{}} = Exqlite.query(db, "create table test2 (test number references test)")
+    assert {:ok, %Result{rows: [row]}} = Exqlite.query(db,
+      "select test.*, group_concat(test2.test) as following from test left join test2 on test.number = test2.test"
+    )
+    assert row == [number: nil, following: nil]
+  end
+
   test "prepare" do
     db = db!()
 
