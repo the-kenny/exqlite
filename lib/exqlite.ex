@@ -91,8 +91,8 @@ defmodule Exqlite do
 
   def execute_raw(conn, sql, opts \\ []) do
     query = %Exqlite.RawQuery{sql: sql}
-    with {:ok, _query, result} <- DBConnection.execute(conn, query, [], opts) do
-      {:ok, result}
+    with {:ok, _query, _result} <- DBConnection.execute(conn, query, [], opts) do
+      :ok
     end
   end
 

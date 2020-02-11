@@ -83,7 +83,7 @@ defmodule ExqliteTest do
 
   test "execute_raw" do
     db = db!()
-    {:ok, nil} = Exqlite.execute_raw(db, "begin; select 42 as result; commit;")
+    :ok = Exqlite.execute_raw(db, "begin; select 42 as result; commit;")
     {:error, "near \"bejgin\": syntax error"} = Exqlite.execute_raw(db, "bejgin; select 42 as result; commit;")
   end
 
