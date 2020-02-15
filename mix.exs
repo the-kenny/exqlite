@@ -20,7 +20,7 @@ defmodule Exqlite.MixProject do
   defp deps do
     [
       {:esqlite, "~> 0.4.0"},
-      {:db_connection, "~> 2.1.1"},
+      {:db_connection, "~> 2.2.1"},
       {:ex_doc, "~> 0.21", only: :dev, runtime: false},
       {:temp, "~> 0.4", only: [:dev, :test]},
     ]
