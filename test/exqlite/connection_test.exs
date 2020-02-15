@@ -70,18 +70,10 @@ defmodule Exqlite.ConnectionTest do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
     DBConnection.prepare_execute(db, %Query{statement: "create table test (number integer)"}, [])
     assert {:ok, _, _} = DBConnection.prepare_execute(db, %Query{statement: "insert into test(number) values(?)"}, [nil])
+    assert {:ok, _, _} = DBConnection.prepare_execute(db, %Query{statement: "insert into test(number) values(?)"}, [42])
 
-    assert {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select number from test"}, [])
-    assert result.rows == [[{:number, nil}]]
-  end
-
-  test "NULL<->nil conversion" do
-    {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
-    DBConnection.prepare_execute(db, %Query{statement: "create table test (number integer)"}, [])
-    assert {:ok, _, _} = DBConnection.prepare_execute(db, %Query{statement: "insert into test(number) values(?)"}, [nil])
-
-    assert {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select number from test"}, [])
-    assert result.rows == [[{:number, nil}]]
+    assert {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select number from test order by number asc"}, [])
+    assert result.rows == [[{:number, nil}], [{:number, 42}]]
   end
 
   test "streaming" do
