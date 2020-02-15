@@ -81,7 +81,7 @@ defmodule Exqlite.Connection do
   def handle_execute(query, params, opts, state) do
     try do
       with {:ok, query} <- maybe_prepare_query(query, state.connection),
-           :ok <- :esqlite3.bind(query.prepared_statement, params),
+           :ok <- bind_params(query.prepared_statement, params),
            {:ok, result} <- fetch_all(query.prepared_statement, opts)
       do
         {:ok, query, result, state}
@@ -111,7 +111,7 @@ defmodule Exqlite.Connection do
   @impl true
   def handle_declare(query, params, _opts, state) do
     with {:ok, query} <- maybe_prepare_query(query, state.connection),
-         :ok <- :esqlite3.bind(query.prepared_statement, params)
+         :ok <- bind_params(query.prepared_statement, params)
     do
       {:ok, query, query.prepared_statement, state}
     end
@@ -152,6 +152,15 @@ defmodule Exqlite.Connection do
   defp maybe_prepare_query(query, _connection) do
     {:ok, query}
   end
+
+  defp bind_params(stmt, params) do
+    params = Enum.map(params, &prepare_param/1)
+    :esqlite3.bind(stmt, params)
+  end
+
+  # Esqlite wants `:undefined` instead of `nil` for NULL
+  defp prepare_param(nil), do: :undefined
+  defp prepare_param(x), do: x
 
   @spec fetch_one(Exqlite.Query.t(), Keyword.t()) :: {:ok, Exqlite.Result.t()} | {:error, any()}
   defp fetch_one(statement, opts) do

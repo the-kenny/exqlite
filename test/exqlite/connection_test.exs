@@ -66,6 +66,24 @@ defmodule Exqlite.ConnectionTest do
     assert {:error, "Constraint error: UNIQUE constraint failed: test.number"} = DBConnection.execute(db, query, [42])
   end
 
+  test "NULL<->nil conversion" do
+    {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
+    DBConnection.prepare_execute(db, %Query{statement: "create table test (number integer)"}, [])
+    assert {:ok, _, _} = DBConnection.prepare_execute(db, %Query{statement: "insert into test(number) values(?)"}, [nil])
+
+    assert {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select number from test"}, [])
+    assert result.rows == [[{:number, nil}]]
+  end
+
+  test "NULL<->nil conversion" do
+    {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
+    DBConnection.prepare_execute(db, %Query{statement: "create table test (number integer)"}, [])
+    assert {:ok, _, _} = DBConnection.prepare_execute(db, %Query{statement: "insert into test(number) values(?)"}, [nil])
+
+    assert {:ok, _, result} = DBConnection.prepare_execute(db, %Query{statement: "select number from test"}, [])
+    assert result.rows == [[{:number, nil}]]
+  end
+
   test "streaming" do
     {:ok, db} = DBConnection.start_link(Exqlite.Connection, @opts)
 
